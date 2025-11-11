@@ -23,7 +23,7 @@ A PHP library for generating PAY by square payment QR codes for Slovak payment s
 ## Installation
 
 ```bash
-composer require paybysquare/php
+composer require feldsam-inc/paybysquare-php
 ```
 
 ## Usage
