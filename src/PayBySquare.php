@@ -115,6 +115,20 @@ class PayBySquare
         }
     }
     
+
+    /**
+     * Allow skip of checking the Xz utility path
+     * 
+     * @param bool $skip
+     * @return bool
+     */
+    public function skipXzPathCheck(?bool $skip = true) :bool
+    {
+        $this->encoder->skipXzPathCheck = $skip;
+        return $this->encoder->skipXzPathCheck ;
+    }
+    
+
     /**
      * Create a new Payment object
      *

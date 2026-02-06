@@ -17,6 +17,13 @@ class Encoder
     private ?string $xzBinaryPath = null;
     
     /**
+     * @var bool Allow skip the XZ binary path check
+     */
+    public bool $skipXzPathCheck = false;
+    
+    
+
+    /**
      * @var array Common paths where XZ binary might be located
      */
     private array $commonXzPaths = [
@@ -137,6 +144,11 @@ class Encoder
     {
         // If path is already set, return it
         if ($this->xzBinaryPath !== null) {
+            // if allowed to skip
+            if($this->skipXzPathCheck) { 
+                return $this->xzBinaryPath;
+            }
+            // else check
             if (file_exists($this->xzBinaryPath) && is_executable($this->xzBinaryPath)) {
                 return $this->xzBinaryPath;
             }
