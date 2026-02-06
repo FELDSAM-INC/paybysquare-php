@@ -232,6 +232,10 @@ $payBySquare = new PayBySquare([
 
 // Or when creating an instance without payment attributes
 $payBySquare = new PayBySquare(null, '/custom/path/to/xz');
+
+// Or even allow skip the path checking, if xz is installed, but fails the check
+$payBySquare->skipXzPathCheck(true);
+
 ```
 
 #### Raw Data String
