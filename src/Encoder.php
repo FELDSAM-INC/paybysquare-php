@@ -135,23 +135,60 @@ class Encoder
      */
     private function getXzBinaryPath(): string
     {
-        // If path is already set, return it
+        // 1) If path is already set, validate and return it
         if ($this->xzBinaryPath !== null) {
-            if (file_exists($this->xzBinaryPath) && is_executable($this->xzBinaryPath)) {
-                return $this->xzBinaryPath;
+            $path = $this->xzBinaryPath;
+
+            if ($this->isBinaryUsable($path)) {
+                return $path;
             }
-            throw new EncodingException("Configured XZ binary not found or not executable: {$this->xzBinaryPath}");
+
+            throw new EncodingException("Configured XZ binary not found or not executable: {$path}");
         }
-        
-        // Try to find XZ binary in common locations
+
+        // 2) Try to find XZ binary in common locations
         foreach ($this->commonXzPaths as $path) {
-            if (file_exists($path) && is_executable($path)) {
+            if ($this->isBinaryUsable($path)) {
                 $this->xzBinaryPath = $path;
                 return $path;
             }
         }
-        
+
         throw new EncodingException('XZ binary not found. Please install XZ or provide the path to the binary.');
+    }
+
+    /**
+     * Checks whether the binary is usable.
+     * - Prefer filesystem checks when allowed (fast).
+     * - If open_basedir blocks them, fall back to actually running the binary.
+     */
+    private function isBinaryUsable(string $path): bool
+    {
+        $openBasedirBlocked = false;
+
+        $prev = set_error_handler(function ($severity, $message) use (&$openBasedirBlocked) {
+            if (stripos($message, 'open_basedir restriction') !== false) {
+                $openBasedirBlocked = true;
+                return true; // swallow the warning
+            }
+            return false; // let other warnings behave normally
+        });
+
+        try {
+            // Fast path
+            if (file_exists($path) && is_executable($path)) {
+                return true;
+            }
+        } finally {
+            restore_error_handler();
+        }
+
+        // Fallback path (only when the reason is open_basedir)
+        if ($openBasedirBlocked) {
+            return $this->isRunnableBinary($path);
+        }
+
+        return false;
     }
     
     /**
@@ -193,4 +230,40 @@ class Encoder
         
         return $base32;
     }
+
+    /**
+     * Check if a binary is runnable
+     *
+     * @param string $path The path to the binary
+     * @return bool True if the binary is runnable, false otherwise
+     */
+    private function isRunnableBinary(string $path): bool
+    {
+        // Avoid shell; pass argv array
+        $cmd = [$path, '--version'];
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $proc = @proc_open($cmd, $descriptors, $pipes);
+        if (!\is_resource($proc)) {
+            return false;
+        }
+
+        // No input needed
+        fclose($pipes[0]);
+
+        // Drain output (optional, but prevents pipe blocking in some cases)
+        stream_get_contents($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        $exitCode = proc_close($proc);
+
+        return $exitCode === 0;
+}
 }
